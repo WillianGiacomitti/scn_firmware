@@ -1,4 +1,4 @@
-# CLAUDE.md: scn_firmware (firmware do ESP32-C6)
+# CLAUDE.md: scn_firmware (firmware da XIAO ESP32C6)
 
 Firmware da unidade de atuadores do Scanner de Insetos: servo de disparo, servo de zoom e relé do USB da câmera Nikon L120. O PC manda comandos de texto pela serial e o ESP32 executa e responde.
 
@@ -10,23 +10,26 @@ Firmware da unidade de atuadores do Scanner de Insetos: servo de disparo, servo 
 - Não mexer em código Python neste repositório. `calbrador.py` e `aconar_camera.py` vão sair daqui (ver "Limpeza pendente").
 
 ## Hardware
-- Placa: **ESP32-C6** (tipo ESP32-C6-DevKitC-1). O código atual ainda está para `esp32dev`, e migrar é a primeira tarefa.
-- Pinos (constantes no topo do código): servo ZOOM = GPIO18, servo SHOT = GPIO19, relé do USB = GPIO2.
+- Placa: **Seeed Studio XIAO ESP32C6**. O código atual ainda está para `esp32dev`, e migrar é a primeira tarefa.
+- A XIAO tem uma só porta USB-C, ligada ao USB nativo do chip (USB Serial/JTAG). O `Serial` só sai por ela com USB CDC no boot ligado (ver `build_flags`).
+- Pinos (constantes no topo do código, sempre pelo número do GPIO, nunca `Dx`): servo ZOOM = GPIO18 (D10), servo SHOT = GPIO19 (D8), relé do USB = GPIO2 (D2).
 - Relé **ativo em nível baixo**: `LOW` = câmera conectada (modo USB), `HIGH` = câmera desconectada (modo foto).
-- Não usar no C6: GPIO 4, 5, 8, 9, 15 (boot), 12, 13 (USB nativo), 16, 17 (UART0).
+- Não usar: GPIO16/17 (D6/D7, UART0 e log de boot). Internos da XIAO, nunca configurar: GPIO3 e GPIO14 (chave de antena), GPIO15 (LED do usuário), GPIO9 (botão BOOT), GPIO12/13 (USB).
 - Ângulos que já funcionam (manter como constantes):
   - ZOOM: neutro 95°, zoom-in 115°, zoom-out 75°.
   - SHOT: pressiona 140° por 1000 ms, 145° por 500 ms, repouso 90°.
 
 ## Ambiente e comandos
-- PlatformIO com Arduino core 3.x pela plataforma **pioarduino**:
+- PlatformIO com Arduino core 3.x. Usar a plataforma da Seeed, como no [guia da Seeed para PlatformIO](https://wiki.seeedstudio.com/xiao_esp32c6_with_platform_io/):
   ```ini
-  platform = https://github.com/pioarduino/platform-espressif32/releases/download/stable/platform-espressif32.zip
-  board = esp32-c6-devkitc-1
+  platform = https://github.com/Seeed-Studio/platform-seeedboards.git
+  board = seeed-xiao-esp32-c6
   framework = arduino
   monitor_speed = 115200
+  build_flags = -DARDUINO_USB_CDC_ON_BOOT=1
   ```
-- Se a placa for ligada pela porta USB nativa do C6, usar `build_flags = -DARDUINO_USB_CDC_ON_BOOT=1` para o `Serial` sair por ela. Confirmar com o Willian qual porta é usada.
+  Se essa plataforma não compilar, a alternativa é a pioarduino (`https://github.com/pioarduino/platform-espressif32/releases/download/stable/platform-espressif32.zip`) com o ID da XIAO C6 que ela listar em `pio boards xiao`. Registrar no architecture.md (seção 11) qual funcionou.
+- Com USB CDC, a porta serial some e volta quando a placa reinicia. Gravar: se o upload falhar, segurar o botão BOOT, apertar RESET e soltar o BOOT.
 - Ambientes:
   - `env:main`: firmware final (`src/main.cpp`).
   - `env:calibrador`: ferramenta de bancada para achar ângulos (`src/calibrador.cpp`, comandos `ZOOM:<angulo>` / `SHOT:<angulo>`). Migrar para o C6 também, mas não precisa seguir o protocolo novo.
@@ -36,7 +39,7 @@ Firmware da unidade de atuadores do Scanner de Insetos: servo de disparo, servo 
 O Claude Code não tem a placa. Ele compila e roda os testes `native`. O teste no hardware é feito pelo Willian, e cada entrega lista os comandos que ele deve digitar no monitor serial e o que deve aparecer.
 
 ## Servos no core 3.x
-A biblioteca `ESP32Servo` pode não compilar para o C6. Preferir o PWM nativo do core 3.x (`ledcAttach(pin, 50, 14)` e `ledcWrite`, convertendo ângulo → pulso de 500–2400 µs) numa classe pequena própria. Só usar `ESP32Servo` se compilar sem erro para `esp32-c6-devkitc-1`.
+A biblioteca `ESP32Servo` pode não compilar para o C6. Preferir o PWM nativo do core 3.x (`ledcAttach(pin, 50, 14)` e `ledcWrite`, convertendo ângulo → pulso de 500–2400 µs) numa classe pequena própria. Só usar `ESP32Servo` se compilar sem erro para a XIAO ESP32C6.
 
 ## Estrutura alvo
 ```
